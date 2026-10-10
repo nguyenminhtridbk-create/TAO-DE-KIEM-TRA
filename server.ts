@@ -36,7 +36,7 @@ function extractJson(text: string): any {
 
 // Fallback question generator when AI is unavailable or offline
 function generateFallbackQuestions(config: any): any[] {
-  const { subject, grade, topic, selectedFormats, totalScore, cognitiveCount } = config;
+  const { subject, grade, topic, selectedFormats, totalScore, chapter } = config;
   const questions: any[] = [];
   let qNum = 1;
 
@@ -54,80 +54,125 @@ function generateFallbackQuestions(config: any): any[] {
     for (let i = 0; i < 10; i++) formatList.push('multiple_choice_4');
   }
 
-  const levels = ['nhan_biet', 'thong_hieu', 'van_dung'];
+  const levels: ('nhan_biet' | 'thong_hieu' | 'van_dung')[] = ['nhan_biet', 'thong_hieu', 'van_dung'];
   const baseScorePerQ = Number((totalScore / formatList.length).toFixed(2));
+  const cleanTopic = topic || chapter || `Chương trình ${subject} ${grade}`;
+
+  // Subject-specific templates
+  const isMath = subject.includes('Toán');
+  const isLit = subject.includes('Ngữ văn') || subject.includes('Tiếng Việt');
+  const isEng = subject.includes('Anh');
+  const isScience = subject.includes('Lý') || subject.includes('Hóa') || subject.includes('Sinh') || subject.includes('Khoa học');
+  const isHistory = subject.includes('Sử') || subject.includes('Địa') || subject.includes('GDCD') || subject.includes('Kinh tế');
 
   formatList.forEach((fmt, idx) => {
     const level = levels[idx % levels.length];
     const id = `Q${String(qNum).padStart(2, '0')}`;
 
     if (fmt === 'multiple_choice_4') {
+      let qText = `Trong chương trình môn ${subject} (${grade}), nội dung "${cleanTopic}": Khẳng định nào sau đây là đúng?`;
+      let opts = [
+        `Khẳng định A: Thể hiện chính xác quy luật, định lý hoặc quy tắc trong SGK ${subject}.`,
+        `Khẳng định B: Chỉ đúng khi áp dụng cho một số trường hợp ngoại lệ.`,
+        `Khẳng định C: Trái ngược với bản chất tự nhiên và khoa học của ${cleanTopic}.`,
+        `Khẳng định D: Không có tính xác thực và không được áp dụng trong thực tiễn.`,
+      ];
+      let exp = `Phương án A là nhận định chuẩn mực được trình bày rõ trong bài học "${cleanTopic}" của môn ${subject} (${grade}).`;
+
+      if (isMath) {
+        const a = (idx + 2) * 2;
+        const b = idx + 1;
+        qText = `Cho biểu thức P = √(${a}x - ${b}). Điều kiện xác định của biểu thức P trong phần "${cleanTopic}" là:`;
+        opts = [
+          `x ≥ ${b}/${a}`,
+          `x > ${b}/${a}`,
+          `x ≤ ${b}/${a}`,
+          `x < ${b}/${a}`,
+        ];
+        exp = `Biểu thức dưới dấu căn bậc hai không âm khi và chỉ khi ${a}x - ${b} ≥ 0 <=> x ≥ ${b}/${a}. Đáp án A chính xác.`;
+      } else if (isLit) {
+        qText = `Trong văn bản thuộc chủ đề "${cleanTopic}", nét đặc sắc nổi bật nhất về nội dung và nghệ thuật là:`;
+        opts = [
+          `Khắc họa chân thực vẻ đẹp tâm hồn nhân vật và ý nghĩa nhân văn sâu sắc.`,
+          `Sử dụng ngôn ngữ trừu tượng khó hiểu, không phản ánh đời sống.`,
+          `Chỉ tập trung miêu tả ngoại cảnh mà không diễn tả nội tâm.`,
+          `Mang tính chất ước lệ cứng nhắc, thiếu cảm xúc thực tế.`,
+        ];
+        exp = `Phương án A thể hiện đúng giá trị hiện thực và tư tưởng nghệ thuật của tác phẩm trong chương trình ${grade}.`;
+      } else if (isEng) {
+        qText = `Choose the correct answer to complete the sentence regarding "${cleanTopic}":`;
+        opts = [
+          `Students should practice speaking English every day to improve their fluency.`,
+          `Students should practice to speak English every day.`,
+          `Students should practicing speaking English every day.`,
+          `Students should practice spoken English everyday without practice.`,
+        ];
+        exp = `After the modal verb 'should' we use bare infinitive (practice), and 'practice doing something' (practice speaking).`;
+      }
+
       questions.push({
         id,
         subject,
         grade,
-        topic: topic || 'Kiến thức trọng tâm',
+        topic: cleanTopic,
         questionType: 'multiple_choice_4',
         level,
-        question: `Cho kiến thức phần "${topic || subject}". Khẳng định nào sau đây là đúng về đặc điểm cơ bản trong chương trình ${grade}?`,
-        options: [
-          `Phương án A: Thể hiện đúng quy tắc và tính chất cơ bản trong ${subject}.`,
-          `Phương án B: Chỉ áp dụng trong trường hợp ngoại lệ.`,
-          `Phương án C: Trái ngược với quy luật tự nhiên đã học.`,
-          `Phương án D: Không có tính quy luật trong thực tiễn.`,
-        ],
+        question: qText,
+        options: opts,
         correctAnswer: 'A',
-        explanation: `Khẳng định A là chính xác theo nội dung bài học ${topic || subject} của khối ${grade}. Các phương án B, C, D là các phương án nhiễu sai bản chất.`,
+        explanation: exp,
         score: baseScorePerQ,
-        learningOutcome: `Học sinh nắm vững định nghĩa và tính chất cơ bản về ${topic || subject}.`,
+        learningOutcome: `Học sinh nắm vững kiến thức cốt lõi về ${cleanTopic} theo chuẩn GDPT 2018.`,
       });
     } else if (fmt === 'true_false') {
       questions.push({
         id,
         subject,
         grade,
-        topic: topic || 'Kiến thức trọng tâm',
+        topic: cleanTopic,
         questionType: 'true_false',
         level,
-        question: `Xét các nhận định sau đây liên quan đến nội dung "${topic || subject}" (${grade}):`,
+        question: `Xét tính đúng/sai của các mệnh đề sau đây đối với kiến thức "${cleanTopic}" (${subject} - ${grade}):`,
         subQuestions: [
-          { label: 'a', statement: `Đây là kiến thức nền tảng trong chương trình ${grade}.`, isCorrect: true, explanation: 'Đúng theo SGK.' },
-          { label: 'b', statement: 'Nội dung này không có ứng dụng trong thực tế.', isCorrect: false, explanation: 'Sai vì có ứng dụng rất rộng rãi.' },
-          { label: 'c', statement: 'Có thể suy ra từ các định lý cơ bản đã học.', isCorrect: true, explanation: 'Đúng.' },
-          { label: 'd', statement: 'Quy tắc này chỉ đúng khi xét trong điều kiện đặc biệt không chuẩn.', isCorrect: false, explanation: 'Sai.' },
+          { label: 'a', statement: `Nội dung này là kiến thức trọng tâm trong chương trình ${subject} ${grade}.`, isCorrect: true, explanation: 'Đúng theo quy định của chương trình GDPT 2018.' },
+          { label: 'b', statement: `Kiến thức này không thể vận dụng vào giải bài tập hoặc tình huống thực tế.`, isCorrect: false, explanation: 'Sai vì có tính liên hệ và ứng dụng thực tiễn cao.' },
+          { label: 'c', statement: `Có thể chứng minh và suy luận từ các tiên đề, định lý nền tảng đã học.`, isCorrect: true, explanation: 'Đúng theo phương pháp suy luận khoa học.' },
+          { label: 'd', statement: `Quy tắc này áp dụng không cần điều kiện hay giới hạn xác định nào.`, isCorrect: false, explanation: 'Sai vì luôn có tập xác định hoặc phạm vi điều kiện chặt chẽ.' },
         ],
         correctAnswer: 'a-Đ, b-S, c-Đ, d-S',
-        explanation: 'Nhận định a, c đúng; b, d sai do diễn giải sai tính chất.',
+        explanation: 'Ý a và c đúng; ý b và d sai do vi phạm nguyên lý khoa học và tính ứng dụng thực tế.',
         score: baseScorePerQ,
-        learningOutcome: `Phân tích tính đúng sai của các mệnh đề liên quan đến ${topic}.`,
+        learningOutcome: `Phân biệt chính xác tính đúng/sai của các mệnh đề liên quan đến ${cleanTopic}.`,
       });
     } else if (fmt === 'short_answer') {
       questions.push({
         id,
         subject,
         grade,
-        topic: topic || 'Kiến thức trọng tâm',
+        topic: cleanTopic,
         questionType: 'short_answer',
         level,
-        question: `Hãy nêu tên quy tắc / giá trị đại lượng trọng tâm cần tính toán trong phần "${topic || subject}" (${grade}):`,
-        correctAnswer: 'Giá trị xác định chuẩn theo SGK',
-        explanation: 'Học sinh áp dụng trực tiếp công thức lý thuyết để đưa ra kết quả ngắn gọn.',
+        question: isMath
+          ? `Tìm giá trị của x để hàm số/biểu thức trong chủ đề "${cleanTopic}" đạt giá trị nguyên dương nhỏ nhất.`
+          : `Ghi lại thuật ngữ khoa học hoặc từ khóa chính xác nhất thể hiện bản chất của nội dung "${cleanTopic}":`,
+        correctAnswer: isMath ? 'x = 1' : 'Khái niệm chuẩn theo SGK',
+        explanation: 'Học sinh áp dụng trực tiếp công thức hoặc định nghĩa trong bài học để đưa ra câu trả lời ngắn gọn, chính xác.',
         score: baseScorePerQ,
-        learningOutcome: `Ghi nhớ và tính nhanh kết quả hoặc từ khóa chính xác.`,
+        learningOutcome: `Ghi nhớ và tính toán nhanh kết quả trọng tâm của ${cleanTopic}.`,
       });
     } else {
       questions.push({
         id,
         subject,
         grade,
-        topic: topic || 'Kiến thức trọng tâm',
+        topic: cleanTopic,
         questionType: fmt,
         level,
-        question: `Em hãy trình bày hoặc giải chi tiết bài toán/câu hỏi liên quan đến nội dung "${topic || subject}" (${grade}).`,
-        correctAnswer: 'Lời giải chi tiết gồm các bước suy luận logic, công thức và đáp số chuẩn mực.',
-        explanation: 'Bước 1: Nêu công thức/định nghĩa. Bước 2: Trình bày các bước biến đổi/lập luận. Bước 3: Kết luận chính xác.',
+        question: `Em hãy trình bày chi tiết lời giải hoặc bài phân tích cho câu hỏi liên quan đến nội dung "${cleanTopic}" (${grade}).`,
+        correctAnswer: 'Lời giải chi tiết gồm các bước suy luận logic, công thức và đáp số/kết luận chuẩn mực.',
+        explanation: 'Bước 1: Nêu căn cứ lý thuyết, công thức hoặc dẫn chứng liên quan. Bước 2: Trình bày các bước biến đổi/lập luận logic. Bước 3: Đưa ra kết luận rõ ràng, đầy đủ đơn vị.',
         score: baseScorePerQ,
-        learningOutcome: `Vận dụng năng lực giải quyết vấn đề và trình bày mạch lạc.`,
+        learningOutcome: `Vận dụng năng lực giải quyết vấn đề và kỹ năng trình bày logic trong môn ${subject}.`,
       });
     }
     qNum++;
@@ -504,4 +549,9 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.env.VERCEL !== '1') {
+  startServer();
+}
+
+export default app;
+
