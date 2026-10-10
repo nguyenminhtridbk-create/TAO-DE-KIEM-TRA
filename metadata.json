@@ -1,0 +1,6 @@
+{
+  "name": "RA ĐỀ KIỂM TRA AI – 2 CẤP",
+  "description": "Ứng dụng AI thông minh hỗ trợ giáo viên THCS và THPT tạo đề kiểm tra, ma trận đề, bản đặc tả và đáp án chi tiết theo chuẩn Bộ GD&ĐT cho mọi môn học.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
