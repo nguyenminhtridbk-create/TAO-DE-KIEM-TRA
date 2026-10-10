@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Sparkles, FolderArchive, Database, RotateCcw, Trash2, FileSpreadsheet, HelpCircle, KeyRound } from 'lucide-react';
+import { BookOpen, Sparkles, FolderArchive, Database, RotateCcw, Trash2, FileSpreadsheet, HelpCircle, KeyRound, Crown } from 'lucide-react';
 
 interface HeaderProps {
   onOpenQuestionBank: () => void;
@@ -8,6 +8,7 @@ interface HeaderProps {
   onOpenGuide: () => void;
   onOpenApiKey: () => void;
   hasCustomApiKey: boolean;
+  isAdmin?: boolean;
   onRestoreConfig: () => void;
   onResetConfig: () => void;
 }
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenGuide,
   onOpenApiKey,
   hasCustomApiKey,
+  isAdmin = false,
   onRestoreConfig,
   onResetConfig,
 }) => {
@@ -60,18 +62,34 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Hướng dẫn</span>
             </button>
 
-            <button
-              onClick={onOpenApiKey}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                hasCustomApiKey
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 shadow-xs'
-                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-              }`}
-              title="Cấu hình Google Gemini API Key cá nhân hoặc máy chủ"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-amber-600" />
-              <span>{hasCustomApiKey ? 'Key cá nhân: Đã nạp' : 'Cấu hình API Key'}</span>
-            </button>
+            {isAdmin ? (
+              <button
+                onClick={onOpenApiKey}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-xs transition-colors"
+                title="Quyền Tác giả website: Miễn phí, dùng trực tiếp máy chủ không cần API key"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-600" />
+                <span>👑 Quản trị viên (Tác giả)</span>
+              </button>
+            ) : hasCustomApiKey ? (
+              <button
+                onClick={onOpenApiKey}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 shadow-xs transition-colors"
+                title="Đang sử dụng Google Gemini API Key cá nhân của bạn"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-emerald-600" />
+                <span>🔑 API Key cá nhân</span>
+              </button>
+            ) : (
+              <button
+                onClick={onOpenApiKey}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-red-300 bg-red-50 text-red-800 hover:bg-red-100 animate-pulse transition-colors"
+                title="Chưa mở khóa! Bấm để nhập API Key hoặc Mật khẩu Quản trị"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-red-600" />
+                <span>⚠️ Nhập Key / Mật khẩu</span>
+              </button>
+            )}
 
             <button
               onClick={onOpenMatrixImport}

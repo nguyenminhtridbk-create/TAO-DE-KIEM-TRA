@@ -29,6 +29,8 @@ import {
   Zap,
   BookmarkCheck,
   Library,
+  Crown,
+  KeyRound,
 } from 'lucide-react';
 
 interface ConfigSidebarProps {
@@ -37,6 +39,9 @@ interface ConfigSidebarProps {
   onGenerateExam: () => void;
   onGenerateMatrixOnly: () => void;
   isGenerating: boolean;
+  isAdmin?: boolean;
+  hasCustomApiKey?: boolean;
+  onOpenAuthModal?: () => void;
 }
 
 export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
@@ -45,6 +50,9 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
   onGenerateExam,
   onGenerateMatrixOnly,
   isGenerating,
+  isAdmin = false,
+  hasCustomApiKey = false,
+  onOpenAuthModal,
 }) => {
   // Accordion open states
   const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
@@ -769,9 +777,64 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
 
       {/* Primary Action Button */}
       <div className="p-4 border-t border-slate-200 bg-white space-y-2">
+        {/* Auth status indicator */}
+        {isAdmin ? (
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-semibold">
+            <div className="flex items-center gap-1.5">
+              <Crown className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>👑 Quyền Tác giả: Dùng máy chủ trực tiếp</span>
+            </div>
+            {onOpenAuthModal && (
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="text-[10px] text-amber-800 underline hover:text-amber-950 font-bold"
+              >
+                Quản lý
+              </button>
+            )}
+          </div>
+        ) : hasCustomApiKey ? (
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-semibold">
+            <div className="flex items-center gap-1.5">
+              <KeyRound className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>🔑 Đang dùng API Key cá nhân của bạn</span>
+            </div>
+            {onOpenAuthModal && (
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="text-[10px] text-emerald-800 underline hover:text-emerald-950 font-bold"
+              >
+                Đổi Key
+              </button>
+            )}
+          </div>
+        ) : (
+          <div
+            onClick={onOpenAuthModal}
+            className="flex items-center justify-between px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-900 text-[11px] cursor-pointer transition-colors"
+            title="Bấm để nhập API Key hoặc Mật khẩu Quản trị"
+          >
+            <div className="flex items-center gap-1.5 font-bold">
+              <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <span>Chưa mở khóa: Cần Key / Mật khẩu</span>
+            </div>
+            <span className="text-[10px] bg-red-600 text-white font-bold px-2 py-0.5 rounded-md">
+              Mở khóa
+            </span>
+          </div>
+        )}
+
         <button
           type="button"
-          onClick={onGenerateExam}
+          onClick={() => {
+            if (!isAdmin && !hasCustomApiKey && onOpenAuthModal) {
+              onOpenAuthModal();
+              return;
+            }
+            onGenerateExam();
+          }}
           disabled={isGenerating || totalQuestions === 0}
           className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
         >

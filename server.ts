@@ -23,20 +23,67 @@ if (apiKey) {
   });
 }
 
-// Function to resolve Gemini client (user-provided key has priority, then server env key)
-function getGeminiClient(req: express.Request): GoogleGenAI | null {
+const ADMIN_PASSWORD = '68686868@#';
+
+interface AuthContext {
+  authorized: boolean;
+  isAdmin: boolean;
+  client: GoogleGenAI | null;
+  error?: string;
+}
+
+// Function to resolve Auth and Gemini client:
+// - Creator/Admin uses ADMIN_PASSWORD: uses server's Gemini client without needing personal key
+// - Guest/Teacher uses personal Gemini API Key
+function verifyAuth(req: express.Request): AuthContext {
+  const adminKey =
+    (req.headers['x-admin-key'] as string) ||
+    req.body?.adminKey ||
+    (req.headers['authorization']?.replace(/^Bearer\s+/i, ''));
   const customKey = (req.headers['x-gemini-api-key'] as string) || req.body?.userApiKey;
-  if (customKey && typeof customKey === 'string' && customKey.trim().length > 10) {
-    return new GoogleGenAI({
-      apiKey: customKey.trim(),
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
+
+  // 1. Quản trị viên / Tác giả website
+  if (adminKey && adminKey.trim() === ADMIN_PASSWORD) {
+    return {
+      authorized: true,
+      isAdmin: true,
+      client: ai,
+    };
   }
-  return ai;
+
+  // 2. Giáo viên / Người dùng khách với API Key cá nhân
+  if (customKey && typeof customKey === 'string' && customKey.trim().length > 10) {
+    try {
+      const userAi = new GoogleGenAI({
+        apiKey: customKey.trim(),
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
+      return {
+        authorized: true,
+        isAdmin: false,
+        client: userAi,
+      };
+    } catch (err: any) {
+      return {
+        authorized: false,
+        isAdmin: false,
+        client: null,
+        error: 'Khóa API Gemini không đúng định dạng.',
+      };
+    }
+  }
+
+  // 3. Chưa xác thực
+  return {
+    authorized: false,
+    isAdmin: false,
+    client: null,
+    error: 'YÊU CẦU XÁC THỰC: Bạn cần nhập Google Gemini API Key cá nhân hoặc Mật khẩu Quản trị viên (68686868@#) để tạo đề kiểm tra.',
+  };
 }
 
 // Helper to sanitize JSON string from Gemini
@@ -240,14 +287,24 @@ app.post('/api/exam/generate', async (req, res) => {
       totalQuestionsCount = 10;
     }
 
-    const activeAi = getGeminiClient(req);
+    const auth = verifyAuth(req);
+    if (!auth.authorized) {
+      return res.status(401).json({
+        success: false,
+        requiresAuth: true,
+        error: auth.error,
+      });
+    }
+
+    const activeAi = auth.client;
     if (!activeAi) {
-      // Fallback if no Gemini API key configured
+      // Fallback if no Gemini API key configured on server for admin
       const fallbackQuestions = generateFallbackQuestions(config);
       return res.json({
         success: true,
         source: 'fallback',
         questions: fallbackQuestions,
+        message: 'Đang dùng bộ câu hỏi theo chuẩn GDPT 2018 (Chế độ dự phòng)',
       });
     }
 
@@ -384,7 +441,11 @@ HÃY TRẢ VỀ DẠNG JSON DUY NHẤT VỚI CẤU TRÚC:
 app.post('/api/exam/regenerate-question', async (req, res) => {
   try {
     const { currentQuestion, subject, grade, topic } = req.body;
-    const activeAi = getGeminiClient(req);
+    const auth = verifyAuth(req);
+    if (!auth.authorized) {
+      return res.status(401).json({ success: false, requiresAuth: true, error: auth.error });
+    }
+    const activeAi = auth.client;
 
     if (!activeAi) {
       return res.json({
@@ -447,7 +508,11 @@ YÊU CẦU:
 app.post('/api/exam/generate-equivalent', async (req, res) => {
   try {
     const { originalQuestions, subject, grade, topic, totalScore } = req.body;
-    const activeAi = getGeminiClient(req);
+    const auth = verifyAuth(req);
+    if (!auth.authorized) {
+      return res.status(401).json({ success: false, requiresAuth: true, error: auth.error });
+    }
+    const activeAi = auth.client;
 
     if (!activeAi) {
       const regenerated = originalQuestions.map((q: any, i: number) => ({
@@ -503,7 +568,11 @@ Trả về JSON:
 app.post('/api/exam/parse-matrix', async (req, res) => {
   try {
     const { matrixText, subject, grade } = req.body;
-    const activeAi = getGeminiClient(req);
+    const auth = verifyAuth(req);
+    if (!auth.authorized) {
+      return res.status(401).json({ success: false, requiresAuth: true, error: auth.error });
+    }
+    const activeAi = auth.client;
 
     if (!activeAi || !matrixText) {
       return res.json({
@@ -551,14 +620,82 @@ Trả về JSON:
   }
 });
 
+// Verify Auth endpoint (Admin password or User API Key)
+app.post('/api/auth/verify', async (req, res) => {
+  try {
+    const { adminPassword, apiKey } = req.body;
+
+    if (adminPassword !== undefined) {
+      if (typeof adminPassword === 'string' && adminPassword.trim() === ADMIN_PASSWORD) {
+        return res.json({
+          success: true,
+          role: 'admin',
+          message: '👑 Xác thực Quản trị viên (Tác giả website) thành công! Không cần nhập API key.',
+        });
+      } else {
+        return res.status(401).json({
+          success: false,
+          error: 'Mật khẩu Quản trị viên không chính xác. Vui lòng kiểm tra lại!',
+        });
+      }
+    }
+
+    if (apiKey && typeof apiKey === 'string' && apiKey.trim().length > 10) {
+      const testAi = new GoogleGenAI({
+        apiKey: apiKey.trim(),
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
+      const response = await testAi.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: 'Trả lời đúng 1 từ tiếng Việt: "OK"',
+      });
+      return res.json({
+        success: true,
+        role: 'user',
+        message: '🔑 Khóa Gemini API cá nhân hợp lệ và đã kết nối thành công!',
+        reply: response.text?.trim() || 'OK',
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: 'Vui lòng cung cấp mật khẩu Quản trị hoặc Gemini API Key hợp lệ.',
+    });
+  } catch (err: any) {
+    return res.status(400).json({
+      success: false,
+      error: err.message || 'Khóa API không hợp lệ hoặc đã chạm hạn mức rate limit của Google.',
+    });
+  }
+});
+
 // Test API Key endpoint for user validation in UI
 app.post('/api/exam/test-key', async (req, res) => {
   try {
-    const activeAi = getGeminiClient(req);
+    const auth = verifyAuth(req);
+    if (!auth.authorized) {
+      return res.status(401).json({
+        success: false,
+        error: auth.error || 'Chưa được xác thực. Vui lòng nhập API key hoặc mật khẩu quản trị.',
+      });
+    }
+
+    const activeAi = auth.client;
     if (!activeAi) {
+      if (auth.isAdmin) {
+        return res.json({
+          success: true,
+          message: '👑 Xác thực Quản trị viên thành công! Máy chủ đang sẵn sàng ở chế độ tác giả.',
+          reply: 'Sẵn sàng',
+        });
+      }
       return res.status(400).json({
         success: false,
-        error: 'Chưa có API key nào được thiết lập (chưa có key cá nhân và máy chủ chưa cấu hình key).',
+        error: 'Chưa có API key nào được thiết lập.',
       });
     }
 
@@ -569,7 +706,9 @@ app.post('/api/exam/test-key', async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Khóa API Gemini hoạt động tốt và kết nối thành công!',
+      message: auth.isAdmin
+        ? '👑 Chế độ Tác giả: Kết nối máy chủ AI Gemini thành công!'
+        : '🔑 Khóa API Gemini cá nhân hoạt động tốt và kết nối thành công!',
       reply: response.text?.trim() || 'Sẵn sàng',
     });
   } catch (error: any) {

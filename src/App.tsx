@@ -38,7 +38,7 @@ import { QuestionBankModal } from './components/QuestionBankModal';
 import { SavedExamsModal } from './components/SavedExamsModal';
 import { MatrixImportModal } from './components/MatrixImportModal';
 import { UserGuideModal } from './components/UserGuideModal';
-import { ApiKeyModal } from './components/ApiKeyModal';
+import { AuthAccessModal } from './components/AuthAccessModal';
 import {
   FileText,
   CheckCircle,
@@ -63,6 +63,8 @@ const STORAGE_KEY_CONFIG = 'exam_ai_config_v1';
 const STORAGE_KEY_SAVED_EXAMS = 'exam_ai_saved_exams_v1';
 const STORAGE_KEY_BANK = 'exam_ai_question_bank_v1';
 const STORAGE_KEY_API_KEY = 'gemini_user_api_key';
+const STORAGE_KEY_ADMIN_PASS = 'edu_admin_auth_pass';
+const ADMIN_PASSWORD_VALUE = '68686868@#';
 
 export default function App() {
   // Config state
@@ -123,9 +125,20 @@ export default function App() {
   const [isSavedOpen, setIsSavedOpen] = useState(false);
   const [isMatrixImportOpen, setIsMatrixImportOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [isApiKeyOpen, setIsApiKeyOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // User Gemini API Key (stored in localStorage)
+  // Admin password (for creator/admin)
+  const [adminPassword, setAdminPassword] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_ADMIN_PASS) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const isAdmin = adminPassword.trim() === ADMIN_PASSWORD_VALUE;
+
+  // User Gemini API Key (stored in localStorage for guest teachers)
   const [userApiKey, setUserApiKey] = useState<string>(() => {
     try {
       return localStorage.getItem(STORAGE_KEY_API_KEY) || '';
@@ -134,26 +147,79 @@ export default function App() {
     }
   });
 
-  const handleSaveApiKey = (key: string) => {
-    setUserApiKey(key);
+  const isUnlocked = isAdmin || (userApiKey.trim().length > 10);
+
+  // Automatically prompt Auth Modal on entry if not unlocked yet
+  useEffect(() => {
+    if (!isAdmin && !userApiKey) {
+      const timer = setTimeout(() => {
+        setIsAuthModalOpen(true);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isAdmin, userApiKey]);
+
+  const handleLoginAdmin = async (password: string): Promise<boolean> => {
     try {
-      if (key) {
-        localStorage.setItem(STORAGE_KEY_API_KEY, key);
-        showToast('🔑 Đã lưu Google Gemini API Key cá nhân thành công!');
-      } else {
-        localStorage.removeItem(STORAGE_KEY_API_KEY);
-        showToast('Đã xóa key cá nhân, chuyển sang dùng mặc định.');
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword: password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAdminPassword(password);
+        localStorage.setItem(STORAGE_KEY_ADMIN_PASS, password);
+        showToast('👑 Chào mừng Tác giả! Đã mở khóa quyền Quản trị viên.');
+        return true;
       }
-    } catch (e) {
-      console.error(e);
+      return false;
+    } catch {
+      if (password.trim() === ADMIN_PASSWORD_VALUE) {
+        setAdminPassword(password.trim());
+        localStorage.setItem(STORAGE_KEY_ADMIN_PASS, password.trim());
+        showToast('👑 Chào mừng Tác giả! Đã mở khóa quyền Quản trị viên.');
+        return true;
+      }
+      return false;
     }
   };
 
-  const handleClearApiKey = () => {
+  const handleSaveApiKey = async (key: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: key }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUserApiKey(key);
+        localStorage.setItem(STORAGE_KEY_API_KEY, key);
+        showToast('🔑 Đã lưu Google Gemini API Key cá nhân thành công!');
+        return true;
+      } else {
+        showToast(data.error || 'Khóa API không hợp lệ.');
+        return false;
+      }
+    } catch {
+      if (key.trim().length > 10) {
+        setUserApiKey(key.trim());
+        localStorage.setItem(STORAGE_KEY_API_KEY, key.trim());
+        showToast('🔑 Đã lưu API Key cá nhân vào trình duyệt.');
+        return true;
+      }
+      return false;
+    }
+  };
+
+  const handleLogoutAuth = () => {
+    setAdminPassword('');
     setUserApiKey('');
     try {
+      localStorage.removeItem(STORAGE_KEY_ADMIN_PASS);
       localStorage.removeItem(STORAGE_KEY_API_KEY);
-      showToast('Đã xóa API key cá nhân.');
+      showToast('Đã đăng xuất. Vui lòng xác thực lại để tiếp tục sử dụng.');
     } catch (e) {
       console.error(e);
     }
@@ -235,6 +301,12 @@ export default function App() {
 
   // Generate Exam Action
   const handleGenerateExam = async () => {
+    if (!isAdmin && !userApiKey) {
+      setIsAuthModalOpen(true);
+      showToast('⚠️ Vui lòng nhập API Key cá nhân hoặc Mật khẩu Quản trị để tạo đề thi!');
+      return;
+    }
+
     setIsGenerating(true);
     setShowProgressModal(true);
     setIsGenerationComplete(false);
@@ -250,7 +322,9 @@ export default function App() {
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (userApiKey) {
+      if (isAdmin) {
+        headers['x-admin-key'] = adminPassword;
+      } else if (userApiKey) {
         headers['x-gemini-api-key'] = userApiKey;
       }
 
@@ -262,6 +336,15 @@ export default function App() {
 
       const data = await response.json();
       clearInterval(stepInterval);
+
+      if (response.status === 401 || data.requiresAuth) {
+        setIsGenerating(false);
+        setShowProgressModal(false);
+        setIsAuthModalOpen(true);
+        showToast(data.error || 'Yêu cầu xác thực để tạo đề thi.');
+        return;
+      }
+
       setProgressStep(4);
 
       const rawQuestions: ExamQuestion[] = data.questions || [];
@@ -337,6 +420,12 @@ export default function App() {
   // Generate Equivalent Exam (Page 9, 20)
   const handleGenerateEquivalentExam = async () => {
     if (!exam) return;
+    if (!isAdmin && !userApiKey) {
+      setIsAuthModalOpen(true);
+      showToast('⚠️ Vui lòng nhập API Key cá nhân hoặc Mật khẩu Quản trị để tạo đề thi!');
+      return;
+    }
+
     setIsGenerating(true);
     setShowProgressModal(true);
     setIsGenerationComplete(false);
@@ -344,7 +433,9 @@ export default function App() {
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (userApiKey) {
+      if (isAdmin) {
+        headers['x-admin-key'] = adminPassword;
+      } else if (userApiKey) {
         headers['x-gemini-api-key'] = userApiKey;
       }
 
@@ -361,6 +452,14 @@ export default function App() {
       });
 
       const data = await response.json();
+      if (response.status === 401 || data.requiresAuth) {
+        setIsGenerating(false);
+        setShowProgressModal(false);
+        setIsAuthModalOpen(true);
+        showToast(data.error || 'Yêu cầu xác thực để tạo đề thi.');
+        return;
+      }
+
       const newQuestions = data.questions || [];
       const matrix = calculateMatrix(newQuestions, exam.totalScore);
       const specifications = generateSpecifications(newQuestions);
@@ -400,11 +499,19 @@ export default function App() {
   // Regenerate single question
   const handleRegenerateQuestion = async (q: ExamQuestion) => {
     if (!exam) return;
+    if (!isAdmin && !userApiKey) {
+      setIsAuthModalOpen(true);
+      showToast('⚠️ Vui lòng nhập API Key cá nhân hoặc Mật khẩu Quản trị để tạo câu hỏi!');
+      return;
+    }
+
     setRegeneratingQuestionId(q.id);
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (userApiKey) {
+      if (isAdmin) {
+        headers['x-admin-key'] = adminPassword;
+      } else if (userApiKey) {
         headers['x-gemini-api-key'] = userApiKey;
       }
 
@@ -420,6 +527,11 @@ export default function App() {
       });
 
       const data = await response.json();
+      if (response.status === 401 || data.requiresAuth) {
+        setIsAuthModalOpen(true);
+        showToast(data.error || 'Yêu cầu xác thực để tạo câu hỏi.');
+        return;
+      }
       if (data.question) {
         pushUndoState(exam.questions);
         const updated = exam.questions.map((oldQ) =>
@@ -631,8 +743,9 @@ export default function App() {
         onOpenSavedExams={() => setIsSavedOpen(true)}
         onOpenMatrixImport={() => setIsMatrixImportOpen(true)}
         onOpenGuide={() => setIsGuideOpen(true)}
-        onOpenApiKey={() => setIsApiKeyOpen(true)}
+        onOpenApiKey={() => setIsAuthModalOpen(true)}
         hasCustomApiKey={Boolean(userApiKey)}
+        isAdmin={isAdmin}
         onRestoreConfig={handleRestoreConfig}
         onResetConfig={handleResetConfig}
       />
@@ -648,6 +761,9 @@ export default function App() {
               onGenerateExam={handleGenerateExam}
               onGenerateMatrixOnly={handleGenerateMatrixOnly}
               isGenerating={isGenerating}
+              isAdmin={isAdmin}
+              hasCustomApiKey={Boolean(userApiKey)}
+              onOpenAuthModal={() => setIsAuthModalOpen(true)}
             />
           </div>
 
@@ -1036,13 +1152,15 @@ export default function App() {
         onClose={() => setIsGuideOpen(false)}
       />
 
-      {/* API KEY CONFIGURATION MODAL */}
-      <ApiKeyModal
-        isOpen={isApiKeyOpen}
-        onClose={() => setIsApiKeyOpen(false)}
+      {/* AUTH & ACCESS MODAL (ADMIN / USER API KEY) */}
+      <AuthAccessModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        isAdmin={isAdmin}
         userApiKey={userApiKey}
+        onLoginAdmin={handleLoginAdmin}
         onSaveApiKey={handleSaveApiKey}
-        onClearApiKey={handleClearApiKey}
+        onLogoutAuth={handleLogoutAuth}
       />
     </div>
   );

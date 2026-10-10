@@ -38,12 +38,17 @@ export const MatrixImportModal: React.FC<MatrixImportModalProps> = ({
     setIsParsing(true);
     try {
       const userKey = localStorage.getItem('gemini_user_api_key');
+      const adminPass = localStorage.getItem('edu_admin_auth_pass');
+      const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (adminPass === '68686868@#') {
+        authHeaders['x-admin-key'] = adminPass;
+      } else if (userKey) {
+        authHeaders['x-gemini-api-key'] = userKey;
+      }
+
       const response = await fetch('/api/exam/parse-matrix', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(userKey ? { 'x-gemini-api-key': userKey } : {}),
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           matrixText,
           subject,

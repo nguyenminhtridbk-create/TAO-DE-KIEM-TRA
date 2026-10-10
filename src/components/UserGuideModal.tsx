@@ -114,6 +114,18 @@ export const UserGuideModal: React.FC<UserGuideModalProps> = ({ isOpen, onClose 
               </div>
             </div>
           </div>
+
+          {/* Quy định truy cập: Tác giả & Giáo viên khách */}
+          <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-1.5 text-indigo-950">
+            <div className="font-bold flex items-center gap-1.5 text-indigo-900">
+              <ShieldCheck className="w-4 h-4 text-indigo-600" />
+              <span>QUY ĐỊNH TRUY CẬP VÀ SỬ DỤNG HỆ THỐNG:</span>
+            </div>
+            <p className="text-slate-700 leading-relaxed text-[11px]">
+              • <strong>Dành cho Tác giả website (Quản trị viên):</strong> Nhập mật khẩu quản trị <code>68686868@#</code> trên thanh menu để kích hoạt toàn quyền mà không cần điền API key.<br />
+              • <strong>Dành cho Giáo viên / Người dùng khách:</strong> Nhập <strong>Google Gemini API Key</strong> cá nhân miễn phí (lấy tại <em>aistudio.google.com/apikey</em>) để tạo đề nhanh chóng, không bị nghẽn mạng và bảo mật 100% trong trình duyệt.
+            </p>
+          </div>
         </div>
 
         {/* Footer */}
