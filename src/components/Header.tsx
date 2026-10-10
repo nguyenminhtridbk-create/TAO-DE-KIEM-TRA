@@ -1,10 +1,11 @@
 import React from 'react';
-import { BookOpen, Sparkles, FolderArchive, Database, RotateCcw, Trash2, FileSpreadsheet } from 'lucide-react';
+import { BookOpen, Sparkles, FolderArchive, Database, RotateCcw, Trash2, FileSpreadsheet, HelpCircle } from 'lucide-react';
 
 interface HeaderProps {
   onOpenQuestionBank: () => void;
   onOpenSavedExams: () => void;
   onOpenMatrixImport: () => void;
+  onOpenGuide: () => void;
   onRestoreConfig: () => void;
   onResetConfig: () => void;
 }
@@ -13,6 +14,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQuestionBank,
   onOpenSavedExams,
   onOpenMatrixImport,
+  onOpenGuide,
   onRestoreConfig,
   onResetConfig,
 }) => {
@@ -42,6 +44,15 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Quick Actions */}
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={onOpenGuide}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
+              title="Xem hướng dẫn sử dụng nhanh"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+              <span>Hướng dẫn</span>
+            </button>
+
             <button
               onClick={onOpenMatrixImport}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"

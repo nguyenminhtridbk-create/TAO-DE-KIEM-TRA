@@ -37,6 +37,7 @@ import { ProgressModal } from './components/ProgressModal';
 import { QuestionBankModal } from './components/QuestionBankModal';
 import { SavedExamsModal } from './components/SavedExamsModal';
 import { MatrixImportModal } from './components/MatrixImportModal';
+import { UserGuideModal } from './components/UserGuideModal';
 import {
   FileText,
   CheckCircle,
@@ -119,6 +120,7 @@ export default function App() {
   const [isBankOpen, setIsBankOpen] = useState(false);
   const [isSavedOpen, setIsSavedOpen] = useState(false);
   const [isMatrixImportOpen, setIsMatrixImportOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -576,6 +578,7 @@ export default function App() {
         onOpenQuestionBank={() => setIsBankOpen(true)}
         onOpenSavedExams={() => setIsSavedOpen(true)}
         onOpenMatrixImport={() => setIsMatrixImportOpen(true)}
+        onOpenGuide={() => setIsGuideOpen(true)}
         onRestoreConfig={handleRestoreConfig}
         onResetConfig={handleResetConfig}
       />
@@ -971,6 +974,12 @@ export default function App() {
         onApplyParsedMatrix={handleApplyParsedMatrix}
         subject={config.subject}
         grade={config.grade}
+      />
+
+      {/* USER GUIDE MODAL */}
+      <UserGuideModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
       />
     </div>
   );
