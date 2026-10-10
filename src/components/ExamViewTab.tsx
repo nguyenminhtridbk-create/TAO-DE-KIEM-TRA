@@ -47,28 +47,37 @@ export const ExamViewTab: React.FC<ExamViewTabProps> = ({
       <div className="border border-slate-300 rounded-2xl p-6 bg-white shadow-xs print:border-none print:p-0 print:shadow-none exam-print-sheet">
         <div className="grid grid-cols-2 gap-4 pb-4 border-b border-slate-200 text-xs text-slate-800">
           <div>
-            <div className="font-bold uppercase tracking-wide text-slate-900">
-              {exam.schoolName || 'TRƯỜNG THCS & THPT NGUYỄN DU'}
+            <div className="text-[11px] font-semibold uppercase text-slate-700">
+              SỞ GDĐT TỈNH ĐỒNG THÁP
             </div>
-            <div className="text-slate-600 mt-1">
+            <div className="font-extrabold uppercase tracking-wide text-blue-900 text-xs sm:text-sm">
+              TRƯỜNG THCS VÀ THPT ĐỐC BINH KIỀU
+            </div>
+            <div className="text-[10px] text-slate-500 italic">
+              (Điểm Đốc Binh Kiều • Điểm Tân Kiều)
+            </div>
+            <div className="text-slate-700 mt-2">
               Họ và tên: ..........................................................................
             </div>
-            <div className="text-slate-600 mt-1">
+            <div className="text-slate-700 mt-1">
               Lớp: ................................ SBD: .................................
             </div>
           </div>
           <div className="text-right">
-            <div className="font-bold uppercase text-slate-900">
+            <div className="text-[11px] font-bold text-slate-600 uppercase">
+              KIỂM TRA ĐỊNH KỲ NĂM HỌC 2026 - 2027
+            </div>
+            <div className="font-extrabold uppercase text-slate-900 text-xs sm:text-sm mt-0.5">
               {exam.title.toUpperCase()}
             </div>
-            <div className="font-semibold text-blue-700 mt-1">
+            <div className="font-semibold text-blue-700 mt-0.5">
               Môn: {exam.subject} — Khối {exam.grade}
             </div>
-            <div className="text-slate-600 italic mt-0.5">
+            <div className="text-slate-600 italic text-[11px] mt-0.5">
               Thời gian làm bài: {exam.durationMinutes} phút (Không kể phát đề)
             </div>
             <div className="font-bold text-slate-900 mt-1">
-              Mã đề thi: <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-300">{exam.selectedVariantCode || '101'}</span>
+              Mã đề thi: <span className="bg-slate-100 px-2.5 py-0.5 rounded border border-slate-300 text-blue-900">{exam.selectedVariantCode || '101'}</span>
             </div>
           </div>
         </div>

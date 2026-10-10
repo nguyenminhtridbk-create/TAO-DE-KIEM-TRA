@@ -5,7 +5,7 @@ export function formatExamAsText(exam: ExamData, variantCode?: string): string {
   const questions = variant ? variant.questions : exam.questions;
   const currentCode = variant ? variant.code : '101';
 
-  let text = `TRƯỜNG: ${exam.schoolName.toUpperCase()}\n`;
+  let text = `SỞ GDĐT TỈNH ĐỒNG THÁP\nTRƯỜNG THCS VÀ THPT ĐỐC BINH KIỀU\n(Điểm Đốc Binh Kiều • Điểm Tân Kiều)\n`;
   text += `HỌ VÀ TÊN: .................................................... LỚP: ${exam.grade}\n`;
   text += `------------------------------------------------------------\n`;
   text += `${exam.title.toUpperCase()}\n`;
@@ -140,12 +140,15 @@ export function downloadWordDocument(exam: ExamData, type: 'exam' | 'solution' |
         <table class="header-table">
           <tr>
             <td style="width: 50%; text-align: center;">
-              <b>${exam.schoolName.toUpperCase()}</b><br>
+              <b>SỞ GDĐT TỈNH ĐỒNG THÁP</b><br>
+              <b>TRƯỜNG THCS VÀ THPT ĐỐC BINH KIỀU</b><br>
+              <i>(Điểm Đốc Binh Kiều • Điểm Tân Kiều)</i><br>
               Tổ Chuyên Môn
             </td>
             <td style="width: 50%; text-align: center;">
-              <b>ĐỀ KIỂM TRA CHÍNH THỨC</b><br>
-              Năm học: 2024 - 2025
+              <b>KIỂM TRA ĐỊNH KỲ</b><br>
+              Năm học: 2026 - 2027<br>
+              <i>(Theo KH số 39 & CV 471/SGDĐT)</i>
             </td>
           </tr>
           <tr>

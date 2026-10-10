@@ -174,7 +174,7 @@ export const INITIAL_CONFIG = {
   customSubject: '',
   examType: 'Kiểm tra giữa kỳ I' as ExamType,
   examTitle: 'Đề kiểm tra giữa học kỳ I',
-  schoolName: 'Trường THCS & THPT Nguyễn Du',
+  schoolName: 'TRƯỜNG THCS VÀ THPT ĐỐC BINH KIỀU',
   durationMinutes: 45,
   isCustomDuration: false,
   topic: 'Phương trình bậc nhất và định lý Vi-ét',
@@ -182,7 +182,7 @@ export const INITIAL_CONFIG = {
   knowledgeScope: 'Từ bài 1 đến bài 5',
   testContent: 'Hàm số bậc nhất, đồ thị hàm số, giải phương trình và hệ phương trình bậc nhất hai ẩn',
   learningOutcomes: 'Học sinh nắm vững định nghĩa, biết giải phương trình và vẽ đồ thị hàm số, vận dụng giải bài toán thực tế',
-  teacherNotes: 'Chú ý cho số liệu nguyên đẹp, các phương án nhiễu logic, kiểm tra kỹ phép tính.',
+  teacherNotes: 'Bám sát Kế hoạch số 39/KH-THCS&THPTĐBK và Công văn 471/SGDĐT-GDPT tỉnh Đồng Tháp.',
   lessonContentText: '',
   referenceDocText: '',
   referenceDocName: '',
@@ -206,7 +206,7 @@ export const INITIAL_CONFIG = {
     essay_writing: { enabled: false, count: 0 },
   },
   cognitiveMode: 'percent' as const,
-  cognitiveCount: { nhan_biet: 8, thong_hieu: 6, van_dung: 4 },
+  cognitiveCount: { nhan_biet: 4, thong_hieu: 3, van_dung: 3 },
   cognitivePercent: { nhan_biet: 40, thong_hieu: 30, van_dung: 30 },
   totalScore: 10,
   numberOfVariants: 2,
@@ -214,4 +214,29 @@ export const INITIAL_CONFIG = {
   teacherQuestions: [],
   textbookSeries: 'Kết nối tri thức' as const,
   termScope: 'Giữa học kỳ I' as const,
+};
+
+// Cấu trúc phân bổ câu hỏi và thời gian kiểm tra định kỳ cấp THPT theo Công văn 471 Sở GDĐT Đồng Tháp
+// (Kế hoạch số 39/KH-THCS&THPTĐBK Trường THCS và THPT Đốc Binh Kiều)
+export interface OfficialDocBinhKieuRule {
+  durationMinutes: number;
+  part1Count: number; // 0.25đ/câu
+  part2Count: number; // Đúng/Sai 4 ý
+  part3Count: number; // Trả lời ngắn
+  hasEssay: boolean;
+  essayScore: number;
+}
+
+export const OFFICIAL_DOC_BINH_KIEU_THPT: Record<string, OfficialDocBinhKieuRule> = {
+  'Toán': { durationMinutes: 90, part1Count: 12, part2Count: 2, part3Count: 4, hasEssay: true, essayScore: 3.0 },
+  'Vật lí': { durationMinutes: 45, part1Count: 12, part2Count: 2, part3Count: 8, hasEssay: true, essayScore: 3.0 },
+  'Hóa học': { durationMinutes: 45, part1Count: 12, part2Count: 2, part3Count: 8, hasEssay: true, essayScore: 3.0 },
+  'Sinh học': { durationMinutes: 45, part1Count: 12, part2Count: 2, part3Count: 8, hasEssay: true, essayScore: 3.0 },
+  'Địa lí': { durationMinutes: 45, part1Count: 12, part2Count: 2, part3Count: 8, hasEssay: true, essayScore: 3.0 },
+  'Lịch sử': { durationMinutes: 45, part1Count: 12, part2Count: 4, part3Count: 0, hasEssay: true, essayScore: 3.0 },
+  'Giáo dục kinh tế và pháp luật': { durationMinutes: 45, part1Count: 12, part2Count: 4, part3Count: 0, hasEssay: true, essayScore: 3.0 },
+  'Tin học': { durationMinutes: 45, part1Count: 16, part2Count: 3, part3Count: 0, hasEssay: true, essayScore: 3.0 },
+  'Công nghệ': { durationMinutes: 45, part1Count: 20, part2Count: 2, part3Count: 0, hasEssay: true, essayScore: 3.0 },
+  'Tiếng Anh': { durationMinutes: 60, part1Count: 28, part2Count: 0, part3Count: 0, hasEssay: true, essayScore: 3.0 },
+  'Ngữ văn': { durationMinutes: 90, part1Count: 0, part2Count: 0, part3Count: 0, hasEssay: true, essayScore: 10.0 },
 };

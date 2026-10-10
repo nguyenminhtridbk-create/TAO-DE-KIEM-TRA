@@ -23,6 +23,22 @@ if (apiKey) {
   });
 }
 
+// Function to resolve Gemini client (user-provided key has priority, then server env key)
+function getGeminiClient(req: express.Request): GoogleGenAI | null {
+  const customKey = (req.headers['x-gemini-api-key'] as string) || req.body?.userApiKey;
+  if (customKey && typeof customKey === 'string' && customKey.trim().length > 10) {
+    return new GoogleGenAI({
+      apiKey: customKey.trim(),
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return ai;
+}
+
 // Helper to sanitize JSON string from Gemini
 function extractJson(text: string): any {
   let cleaned = text.trim();
@@ -224,7 +240,8 @@ app.post('/api/exam/generate', async (req, res) => {
       totalQuestionsCount = 10;
     }
 
-    if (!ai) {
+    const activeAi = getGeminiClient(req);
+    if (!activeAi) {
       // Fallback if no Gemini API key configured
       const fallbackQuestions = generateFallbackQuestions(config);
       return res.json({
@@ -308,7 +325,7 @@ HÃY TRẢ VỀ DẠNG JSON DUY NHẤT VỚI CẤU TRÚC:
 }
 `;
 
-    const response = await ai.models.generateContent({
+    const response = await activeAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
@@ -367,8 +384,9 @@ HÃY TRẢ VỀ DẠNG JSON DUY NHẤT VỚI CẤU TRÚC:
 app.post('/api/exam/regenerate-question', async (req, res) => {
   try {
     const { currentQuestion, subject, grade, topic } = req.body;
+    const activeAi = getGeminiClient(req);
 
-    if (!ai) {
+    if (!activeAi) {
       return res.json({
         success: true,
         question: {
@@ -405,7 +423,7 @@ YÊU CẦU:
 }
 `;
 
-    const response = await ai.models.generateContent({
+    const response = await activeAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
@@ -429,8 +447,9 @@ YÊU CẦU:
 app.post('/api/exam/generate-equivalent', async (req, res) => {
   try {
     const { originalQuestions, subject, grade, topic, totalScore } = req.body;
+    const activeAi = getGeminiClient(req);
 
-    if (!ai) {
+    if (!activeAi) {
       const regenerated = originalQuestions.map((q: any, i: number) => ({
         ...q,
         id: `Q${String(i + 1).padStart(2, '0')}`,
@@ -460,7 +479,7 @@ Trả về JSON:
 }
 `;
 
-    const response = await ai.models.generateContent({
+    const response = await activeAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
@@ -484,7 +503,9 @@ Trả về JSON:
 app.post('/api/exam/parse-matrix', async (req, res) => {
   try {
     const { matrixText, subject, grade } = req.body;
-    if (!ai || !matrixText) {
+    const activeAi = getGeminiClient(req);
+
+    if (!activeAi || !matrixText) {
       return res.json({
         success: true,
         detectedTopics: ['Chương I', 'Chương II'],
@@ -513,7 +534,7 @@ Trả về JSON:
 }
 `;
 
-    const response = await ai.models.generateContent({
+    const response = await activeAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
@@ -527,6 +548,36 @@ Trả về JSON:
   } catch (error: any) {
     console.error('Error parsing matrix:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Test API Key endpoint for user validation in UI
+app.post('/api/exam/test-key', async (req, res) => {
+  try {
+    const activeAi = getGeminiClient(req);
+    if (!activeAi) {
+      return res.status(400).json({
+        success: false,
+        error: 'Chưa có API key nào được thiết lập (chưa có key cá nhân và máy chủ chưa cấu hình key).',
+      });
+    }
+
+    const response = await activeAi.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: 'Trả lời đúng 1 từ tiếng Việt: "Sẵn sàng"',
+    });
+
+    return res.json({
+      success: true,
+      message: 'Khóa API Gemini hoạt động tốt và kết nối thành công!',
+      reply: response.text?.trim() || 'Sẵn sàng',
+    });
+  } catch (error: any) {
+    console.error('Error testing API key:', error);
+    return res.status(400).json({
+      success: false,
+      error: error.message || 'Khóa API không hợp lệ hoặc đã chạm hạn mức rate limit của Google.',
+    });
   }
 });
 

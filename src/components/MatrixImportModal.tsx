@@ -37,9 +37,13 @@ export const MatrixImportModal: React.FC<MatrixImportModalProps> = ({
     if (!matrixText.trim()) return;
     setIsParsing(true);
     try {
+      const userKey = localStorage.getItem('gemini_user_api_key');
       const response = await fetch('/api/exam/parse-matrix', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userKey ? { 'x-gemini-api-key': userKey } : {}),
+        },
         body: JSON.stringify({
           matrixText,
           subject,

@@ -38,6 +38,7 @@ import { QuestionBankModal } from './components/QuestionBankModal';
 import { SavedExamsModal } from './components/SavedExamsModal';
 import { MatrixImportModal } from './components/MatrixImportModal';
 import { UserGuideModal } from './components/UserGuideModal';
+import { ApiKeyModal } from './components/ApiKeyModal';
 import {
   FileText,
   CheckCircle,
@@ -61,6 +62,7 @@ import {
 const STORAGE_KEY_CONFIG = 'exam_ai_config_v1';
 const STORAGE_KEY_SAVED_EXAMS = 'exam_ai_saved_exams_v1';
 const STORAGE_KEY_BANK = 'exam_ai_question_bank_v1';
+const STORAGE_KEY_API_KEY = 'gemini_user_api_key';
 
 export default function App() {
   // Config state
@@ -121,6 +123,41 @@ export default function App() {
   const [isSavedOpen, setIsSavedOpen] = useState(false);
   const [isMatrixImportOpen, setIsMatrixImportOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isApiKeyOpen, setIsApiKeyOpen] = useState(false);
+
+  // User Gemini API Key (stored in localStorage)
+  const [userApiKey, setUserApiKey] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_API_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const handleSaveApiKey = (key: string) => {
+    setUserApiKey(key);
+    try {
+      if (key) {
+        localStorage.setItem(STORAGE_KEY_API_KEY, key);
+        showToast('🔑 Đã lưu Google Gemini API Key cá nhân thành công!');
+      } else {
+        localStorage.removeItem(STORAGE_KEY_API_KEY);
+        showToast('Đã xóa key cá nhân, chuyển sang dùng mặc định.');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleClearApiKey = () => {
+    setUserApiKey('');
+    try {
+      localStorage.removeItem(STORAGE_KEY_API_KEY);
+      showToast('Đã xóa API key cá nhân.');
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -212,9 +249,14 @@ export default function App() {
     }, 600);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (userApiKey) {
+        headers['x-gemini-api-key'] = userApiKey;
+      }
+
       const response = await fetch('/api/exam/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(config),
       });
 
@@ -301,9 +343,14 @@ export default function App() {
     setProgressStep(2);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (userApiKey) {
+        headers['x-gemini-api-key'] = userApiKey;
+      }
+
       const response = await fetch('/api/exam/generate-equivalent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           originalQuestions: exam.questions,
           subject: exam.subject,
@@ -356,9 +403,14 @@ export default function App() {
     setRegeneratingQuestionId(q.id);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (userApiKey) {
+        headers['x-gemini-api-key'] = userApiKey;
+      }
+
       const response = await fetch('/api/exam/regenerate-question', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           currentQuestion: q,
           subject: exam.subject,
@@ -579,6 +631,8 @@ export default function App() {
         onOpenSavedExams={() => setIsSavedOpen(true)}
         onOpenMatrixImport={() => setIsMatrixImportOpen(true)}
         onOpenGuide={() => setIsGuideOpen(true)}
+        onOpenApiKey={() => setIsApiKeyOpen(true)}
+        hasCustomApiKey={Boolean(userApiKey)}
         onRestoreConfig={handleRestoreConfig}
         onResetConfig={handleResetConfig}
       />
@@ -980,6 +1034,15 @@ export default function App() {
       <UserGuideModal
         isOpen={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}
+      />
+
+      {/* API KEY CONFIGURATION MODAL */}
+      <ApiKeyModal
+        isOpen={isApiKeyOpen}
+        onClose={() => setIsApiKeyOpen(false)}
+        userApiKey={userApiKey}
+        onSaveApiKey={handleSaveApiKey}
+        onClearApiKey={handleClearApiKey}
       />
     </div>
   );
