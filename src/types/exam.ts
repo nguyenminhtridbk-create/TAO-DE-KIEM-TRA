@@ -187,7 +187,8 @@ export interface ExamConfigState {
   totalScore: number;
   numberOfVariants: number; // 1, 2, 3, 4
   keepTeacherQuestions: boolean;
-  teacherQuestions: TeacherPredefinedQuestion[];
+  textbookSeries?: 'Kết nối tri thức';
+  termScope?: 'Giữa học kỳ I' | 'Cuối học kỳ I' | 'Giữa học kỳ II' | 'Cuối học kỳ II';
 }
 
 export interface BankQuestion extends ExamQuestion {

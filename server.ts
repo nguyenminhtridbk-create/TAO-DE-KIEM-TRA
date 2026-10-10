@@ -205,6 +205,7 @@ app.post('/api/exam/generate', async (req, res) => {
       totalScore,
       keepTeacherQuestions,
       teacherQuestions,
+      textbookSeries,
     } = config;
 
     // Calculate question format counts
@@ -242,12 +243,13 @@ THÔNG TIN ĐỀ KIỂM TRA:
 - Cấp học: ${level} (Trung học cơ sở / Trung học phổ thông)
 - Khối lớp: ${grade}
 - Môn học: ${subject}
+- Bộ sách giáo khoa chuẩn GDPT 2018: ${textbookSeries || 'Kết nối tri thức với cuộc sống'}
 - Loại đề: ${examType}
 - Chủ đề / Tên bài: ${topic || 'Theo chương trình'}
 - Chương: ${chapter || 'Chương hiện tại'}
-- Phạm vi kiến thức: ${knowledgeScope || 'Bám sát SGK'}
+- Phạm vi kiến thức: ${knowledgeScope || 'Bám sát SGK ' + (textbookSeries || 'Kết nối tri thức')}
 - Nội dung trọng tâm cần kiểm tra: ${testContent || 'Nội dung cốt lõi'}
-- Yêu cầu cần đạt: ${learningOutcomes || 'Chuẩn kiến thức, kĩ năng'}
+- Yêu cầu cần đạt: ${learningOutcomes || 'Chuẩn kiến thức, kĩ năng GDPT 2018'}
 - Ghi chú của giáo viên: ${teacherNotes || 'Không có'}
 - Thang điểm tổng: ${totalScore} điểm
 - Chế độ tài liệu: ${referenceMode}

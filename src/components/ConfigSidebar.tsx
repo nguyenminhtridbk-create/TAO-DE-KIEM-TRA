@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ExamConfigState,
   EducationLevel,
@@ -15,6 +15,7 @@ import {
   SCORE_OPTIONS,
   QUESTION_FORMATS,
 } from '../utils/constants';
+import { findCurriculumPreset } from '../utils/vietnameseCurriculumData';
 import {
   Sparkles,
   BookOpen,
@@ -26,7 +27,8 @@ import {
   ChevronUp,
   Upload,
   Zap,
-  SlidersHorizontal,
+  BookmarkCheck,
+  Library,
 } from 'lucide-react';
 
 interface ConfigSidebarProps {
@@ -46,7 +48,8 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
 }) => {
   // Accordion open states
   const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
-    step1: true, // Cấp & Môn
+    step1: true, // Cấp, Lớp & Môn
+    stepBook: true, // Bộ sách & Nạp kiến thức tự động (ĐẶC BIỆT)
     step2: false, // Loại đề & Thời gian
     step3: true, // Cấu trúc câu hỏi
     step4: false, // Nội dung chi tiết & Tài liệu (tùy chọn)
@@ -58,9 +61,13 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
 
   const [showCustomSubjectField, setShowCustomSubjectField] = useState(false);
   const [customSubjectInput, setCustomSubjectInput] = useState('');
+  const [loadedBookNotice, setLoadedBookNotice] = useState<string | null>(null);
 
   const currentGrades = config.level === 'THCS' ? THCS_GRADES : THPT_GRADES;
   const popularSubjects = config.level === 'THCS' ? POPULAR_SUBJECTS_THCS : POPULAR_SUBJECTS_THPT;
+
+  const currentBook = config.textbookSeries || 'Kết nối tri thức';
+  const currentTerm = config.termScope || 'Giữa học kỳ I';
 
   // Total questions count
   const totalQuestions = Object.values(config.selectedFormats).reduce(
@@ -75,67 +82,91 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
 
   const isPercentValid = percentSum === 100;
 
+  // Auto Load Curriculum from Textbook Series (Kết nối tri thức)
+  const handleLoadCurriculum = (
+    term: 'Giữa học kỳ I' | 'Cuối học kỳ I' | 'Giữa học kỳ II' | 'Cuối học kỳ II',
+    subjectOverride?: string,
+    gradeOverride?: string
+  ) => {
+    const book = 'Kết nối tri thức';
+    const subj = subjectOverride || config.subject;
+    const grd = gradeOverride || config.grade;
+    const preset = findCurriculumPreset(subj, grd, term);
+
+    if (preset) {
+      // Build updated formats if preset suggests
+      const newFormats = { ...config.selectedFormats };
+      if (preset.suggestedFormats) {
+        Object.keys(newFormats).forEach((k) => {
+          newFormats[k as QuestionFormatId] = {
+            enabled: false,
+            count: 0,
+          };
+        });
+        Object.keys(preset.suggestedFormats).forEach((k) => {
+          const count = preset.suggestedFormats[k];
+          newFormats[k as QuestionFormatId] = {
+            enabled: count > 0,
+            count,
+          };
+        });
+      }
+
+      onChange({
+        textbookSeries: book,
+        termScope: term,
+        examTitle: `Đề kiểm tra ${term.toLowerCase()} môn ${subj}`,
+        examType: (term.includes('Giữa') ? 'Kiểm tra giữa kỳ I' : 'Kiểm tra cuối kỳ I') as ExamType,
+        topic: preset.topic,
+        chapter: preset.chapter,
+        knowledgeScope: preset.knowledgeScope,
+        testContent: preset.testContent,
+        learningOutcomes: preset.learningOutcomes,
+        selectedFormats: newFormats,
+      });
+
+      setLoadedBookNotice(`Đã nạp kiến thức SGK Kết nối tri thức - ${term} (${subj} ${grd})`);
+    } else {
+      onChange({
+        textbookSeries: book,
+        termScope: term,
+        examTitle: `Đề kiểm tra ${term.toLowerCase()} môn ${subj}`,
+        topic: `Kiến thức trọng tâm ${term} môn ${subj} (${grd})`,
+        chapter: `Chương trình ${term} SGK Kết nối tri thức`,
+        knowledgeScope: `Bám sát sách giáo khoa Kết nối tri thức môn ${subj} ${grd}`,
+        testContent: `Các bài học trọng tâm giai đoạn ${term} theo sách Kết nối tri thức`,
+        learningOutcomes: `Nắm vững định nghĩa, quy tắc và kĩ năng giải quyết vấn đề theo chuẩn bộ sách Kết nối tri thức.`,
+      });
+      setLoadedBookNotice(`Đã cập nhật phạm vi ${term} theo SGK Kết nối tri thức`);
+    }
+
+    setTimeout(() => setLoadedBookNotice(null), 4000);
+  };
+
   // Level change
   const handleLevelChange = (level: EducationLevel) => {
     const newGrades = level === 'THCS' ? THCS_GRADES : THPT_GRADES;
+    const defaultGrade = newGrades[0];
+    const defaultSubject = level === 'THCS' ? POPULAR_SUBJECTS_THCS[0] : POPULAR_SUBJECTS_THPT[0];
     onChange({
       level,
-      grade: newGrades[0],
-      subject: level === 'THCS' ? POPULAR_SUBJECTS_THCS[0] : POPULAR_SUBJECTS_THPT[0],
+      grade: defaultGrade,
+      subject: defaultSubject,
     });
+    handleLoadCurriculum(currentTerm, defaultSubject, defaultGrade);
   };
 
-  // Preset Handlers
-  const applyPreset = (type: '15min' | 'midterm' | 'final') => {
-    if (type === '15min') {
-      onChange({
-        examType: 'Kiểm tra 15 phút',
-        examTitle: `Kiểm tra 15 phút môn ${config.subject}`,
-        durationMinutes: 15,
-        totalScore: 10,
-        selectedFormats: {
-          ...config.selectedFormats,
-          multiple_choice_4: { enabled: true, count: 10 },
-          true_false: { enabled: false, count: 0 },
-          short_answer: { enabled: false, count: 0 },
-          essay_short: { enabled: false, count: 0 },
-          essay_solve: { enabled: false, count: 0 },
-        },
-        cognitivePercent: { nhan_biet: 50, thong_hieu: 30, van_dung: 20 },
-      });
-    } else if (type === 'midterm') {
-      onChange({
-        examType: 'Kiểm tra giữa kỳ I',
-        examTitle: `Đề kiểm tra giữa học kỳ I môn ${config.subject}`,
-        durationMinutes: 45,
-        totalScore: 10,
-        selectedFormats: {
-          ...config.selectedFormats,
-          multiple_choice_4: { enabled: true, count: 12 },
-          true_false: { enabled: true, count: 2 },
-          short_answer: { enabled: true, count: 2 },
-          essay_short: { enabled: true, count: 1 },
-          essay_solve: { enabled: true, count: 1 },
-        },
-        cognitivePercent: { nhan_biet: 40, thong_hieu: 30, van_dung: 30 },
-      });
-    } else if (type === 'final') {
-      onChange({
-        examType: 'Kiểm tra cuối kỳ I',
-        examTitle: `Đề kiểm tra cuối học kỳ I môn ${config.subject}`,
-        durationMinutes: 60,
-        totalScore: 10,
-        selectedFormats: {
-          ...config.selectedFormats,
-          multiple_choice_4: { enabled: true, count: 16 },
-          true_false: { enabled: true, count: 4 },
-          short_answer: { enabled: true, count: 4 },
-          essay_short: { enabled: true, count: 1 },
-          essay_solve: { enabled: true, count: 1 },
-        },
-        cognitivePercent: { nhan_biet: 40, thong_hieu: 30, van_dung: 30 },
-      });
-    }
+  // Subject change
+  const handleSelectSubject = (sub: string) => {
+    setShowCustomSubjectField(false);
+    onChange({ subject: sub, customSubject: '' });
+    handleLoadCurriculum(currentTerm, sub, config.grade);
+  };
+
+  // Grade change
+  const handleSelectGrade = (grd: string) => {
+    onChange({ grade: grd });
+    handleLoadCurriculum(currentTerm, config.subject, grd);
   };
 
   const handleFormatCountChange = (formatId: QuestionFormatId, count: number) => {
@@ -180,8 +211,8 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-full overflow-hidden no-print">
-      {/* Top Header & Presets */}
-      <div className="p-4 border-b border-slate-100 bg-slate-50/70 space-y-3">
+      {/* Top Header */}
+      <div className="p-4 border-b border-slate-100 bg-slate-50/70 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
@@ -194,41 +225,18 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           </span>
         </div>
 
-        {/* Quick Presets for Teacher */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-            <Zap className="w-3 h-3 text-amber-500" />
-            <span>Mẫu đề nhanh (Bấm để áp dụng ngay cấu trúc):</span>
+        {/* Notice banner when textbook is loaded */}
+        {loadedBookNotice && (
+          <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold flex items-center gap-1.5 animate-in fade-in">
+            <BookmarkCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>{loadedBookNotice}</span>
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
-              onClick={() => applyPreset('15min')}
-              className="py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-700 text-slate-700 transition-all text-center shadow-2xs"
-            >
-              ⚡ Đề 15 phút
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset('midterm')}
-              className="py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-700 text-slate-700 transition-all text-center shadow-2xs"
-            >
-              ⭐ Giữa kỳ (45p)
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset('final')}
-              className="py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-700 text-slate-700 transition-all text-center shadow-2xs"
-            >
-              🏆 Cuối kỳ (60p)
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Accordion Form Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 text-sm">
-        {/* ================= SECTION 1: CẤP & MÔN ================= */}
+        {/* ================= SECTION 1: CẤP, LỚP & MÔN ================= */}
         <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
           <button
             type="button"
@@ -288,7 +296,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
                     <button
                       key={g}
                       type="button"
-                      onClick={() => onChange({ grade: g })}
+                      onClick={() => handleSelectGrade(g)}
                       className={`py-1.5 px-2 text-xs font-semibold rounded-lg border text-center transition-colors ${
                         config.grade === g
                           ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
@@ -309,10 +317,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
                     <button
                       key={sub}
                       type="button"
-                      onClick={() => {
-                        setShowCustomSubjectField(false);
-                        onChange({ subject: sub, customSubject: '' });
-                      }}
+                      onClick={() => handleSelectSubject(sub)}
                       className={`px-2 py-1.5 text-[11px] rounded-md text-left truncate transition-colors ${
                         config.subject === sub && !config.customSubject
                           ? 'bg-blue-600 text-white font-bold'
@@ -351,6 +356,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
                               subject: customSubjectInput.trim(),
                               customSubject: customSubjectInput.trim(),
                             });
+                            handleLoadCurriculum(currentTerm, customSubjectInput.trim(), config.grade);
                           }
                         }}
                         className="px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -365,7 +371,85 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           )}
         </div>
 
-        {/* ================= SECTION 2: THÔNG TIN ĐỀ & THỜI GIAN ================= */}
+        {/* ================= SECTION BỘ SÁCH: TỰ ĐỘNG NẠP NỘI DUNG SGK ================= */}
+        <div className="border border-blue-200 rounded-xl overflow-hidden bg-white shadow-2xs ring-1 ring-blue-100">
+          <button
+            type="button"
+            onClick={() => toggleSection('stepBook')}
+            className="w-full p-3 bg-blue-50/70 flex items-center justify-between text-left hover:bg-blue-100/70 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
+                2
+              </span>
+              <span className="font-bold text-xs text-blue-950 uppercase flex items-center gap-1.5">
+                <Library className="w-3.5 h-3.5 text-blue-600" />
+                <span>Bộ sách SGK & Tự động lấy nội dung</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-blue-700 font-bold">
+              <span>{currentBook} • {currentTerm}</span>
+              {openSections.stepBook ? <ChevronUp className="w-4 h-4 text-blue-500" /> : <ChevronDown className="w-4 h-4 text-blue-500" />}
+            </div>
+          </button>
+
+          {openSections.stepBook && (
+            <div className="p-3.5 space-y-3 border-t border-blue-100 bg-blue-50/20">
+              {/* Official Textbook Badge */}
+              <div className="p-2.5 rounded-xl bg-white border border-blue-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                  <span className="text-xs font-semibold text-slate-700">Bộ SGK chuẩn:</span>
+                </div>
+                <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                  Kết nối tri thức với cuộc sống
+                </span>
+              </div>
+
+              {/* Select Term */}
+              <div>
+                <span className="text-xs text-slate-700 font-bold">Chọn kỳ kiểm tra cần tạo:</span>
+                <div className="grid grid-cols-2 gap-1.5 mt-1">
+                  {(['Giữa học kỳ I', 'Cuối học kỳ I', 'Giữa học kỳ II', 'Cuối học kỳ II'] as const).map((term) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => handleLoadCurriculum(term)}
+                      className={`py-2 px-2 text-xs font-semibold rounded-lg border text-center transition-all ${
+                        currentTerm === term
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-bold'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary of Loaded Textbook Content */}
+              <div className="p-2.5 rounded-xl bg-white border border-blue-200 space-y-1 text-xs">
+                <div className="flex items-center justify-between font-bold text-blue-900">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Nội dung đã nạp từ sách:</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-normal">
+                    {config.subject} {config.grade}
+                  </span>
+                </div>
+                <div className="text-slate-800 font-semibold leading-snug">
+                  {config.topic}
+                </div>
+                <div className="text-[11px] text-slate-500 line-clamp-2">
+                  <strong>Phạm vi:</strong> {config.knowledgeScope}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ================= SECTION 3: LOẠI ĐỀ & THỜI GIAN ================= */}
         <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
           <button
             type="button"
@@ -373,15 +457,15 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
             className="w-full p-3 bg-slate-50 flex items-center justify-between text-left hover:bg-slate-100 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">
-                2
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center">
+                3
               </span>
               <span className="font-bold text-xs text-slate-800 uppercase">
-                Loại đề, Thời gian & Thang điểm
+                Thời gian, Thang điểm & Số mã đề
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-              <span>{config.examType} • {config.durationMinutes}p</span>
+              <span>{config.durationMinutes}p • {config.totalScore}đ • {config.numberOfVariants} mã đề</span>
               {openSections.step2 ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </div>
           </button>
@@ -389,27 +473,6 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           {openSections.step2 && (
             <div className="p-3.5 space-y-3 border-t border-slate-100">
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-xs text-slate-600 font-medium">Loại đề kiểm tra:</span>
-                  <select
-                    value={config.examType}
-                    onChange={(e) => {
-                      const examType = e.target.value as ExamType;
-                      onChange({
-                        examType,
-                        examTitle: `${examType} - Môn ${config.subject}`,
-                      });
-                    }}
-                    className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1 bg-white font-medium"
-                  >
-                    {EXAM_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 <div>
                   <span className="text-xs text-slate-600 font-medium">Thời gian làm bài:</span>
                   <select
@@ -424,9 +487,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
                     ))}
                   </select>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="text-xs text-slate-600 font-medium">Thang điểm:</span>
                   <select
@@ -441,42 +502,32 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
                     ))}
                   </select>
                 </div>
-
-                <div>
-                  <span className="text-xs text-slate-600 font-medium">Số mã đề (đảo đề):</span>
-                  <div className="grid grid-cols-4 gap-1 mt-1">
-                    {[1, 2, 3, 4].map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => onChange({ numberOfVariants: v })}
-                        className={`py-1 text-xs font-semibold rounded-md border text-center transition-colors ${
-                          config.numberOfVariants === v
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                        }`}
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               <div>
-                <span className="text-xs text-slate-600 font-medium">Tên hiển thị trên đề:</span>
-                <input
-                  type="text"
-                  value={config.examTitle}
-                  onChange={(e) => onChange({ examTitle: e.target.value })}
-                  className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1 font-medium text-slate-800"
-                />
+                <span className="text-xs text-slate-600 font-medium">Số mã đề cần tạo (xáo trộn tự động):</span>
+                <div className="grid grid-cols-4 gap-1.5 mt-1">
+                  {[1, 2, 3, 4].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => onChange({ numberOfVariants: v })}
+                      className={`py-1.5 text-xs font-bold rounded-lg border text-center transition-colors ${
+                        config.numberOfVariants === v
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {v} mã đề
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* ================= SECTION 3: CẤU TRÚC CÂU HỎI & MỨC ĐỘ ================= */}
+        {/* ================= SECTION 4: CẤU TRÚC CÂU HỎI & MỨC ĐỘ ================= */}
         <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
           <button
             type="button"
@@ -485,7 +536,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           >
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">
-                3
+                4
               </span>
               <span className="font-bold text-xs text-slate-800 uppercase">
                 Số lượng câu & Mức độ nhận thức
@@ -631,7 +682,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           )}
         </div>
 
-        {/* ================= SECTION 4: NỘI DUNG BÀI HỌC & TÀI LIỆU (TÙY CHỌN) ================= */}
+        {/* ================= SECTION 5: CHI TIẾT TỰ ĐIỀN / TÀI LIỆU (TÙY CHỌN) ================= */}
         <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
           <button
             type="button"
@@ -640,14 +691,14 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           >
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center">
-                4
+                5
               </span>
               <span className="font-bold text-xs text-slate-800 uppercase">
-                Chủ đề & Tài liệu (Tùy chọn)
+                Tùy chỉnh chi tiết & Tải tệp (Tùy chọn)
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="truncate max-w-[140px]">{config.topic || 'Mặc định SGK'}</span>
+              <span className="truncate max-w-[140px]">{config.topic}</span>
               {openSections.step4 ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </div>
           </button>
@@ -655,44 +706,49 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           {openSections.step4 && (
             <div className="p-3.5 space-y-3 border-t border-slate-100">
               <div>
-                <span className="text-xs text-slate-600 font-medium">Tên bài / Chủ đề trọng tâm:</span>
+                <span className="text-xs text-slate-600 font-medium">Tên bài / Chủ đề:</span>
                 <input
                   type="text"
                   value={config.topic}
                   onChange={(e) => onChange({ topic: e.target.value })}
-                  placeholder="VD: Căn bậc hai, Dao động cơ, Lặng lẽ Sa Pa..."
-                  className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1"
+                  className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1 font-medium"
                 />
               </div>
 
               <div>
-                <span className="text-xs text-slate-600 font-medium">Chương / Phạm vi kiến thức:</span>
+                <span className="text-xs text-slate-600 font-medium">Chương:</span>
                 <input
                   type="text"
                   value={config.chapter}
                   onChange={(e) => onChange({ chapter: e.target.value })}
-                  placeholder="VD: Chương I, Bài 1 đến bài 4..."
                   className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1"
                 />
               </div>
 
               <div>
-                <span className="text-xs text-slate-600 font-medium">
-                  Dán nội dung SGK / Ngữ liệu đọc hiểu (nếu có):
-                </span>
+                <span className="text-xs text-slate-600 font-medium">Phạm vi kiến thức SGK:</span>
+                <input
+                  type="text"
+                  value={config.knowledgeScope}
+                  onChange={(e) => onChange({ knowledgeScope: e.target.value })}
+                  className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1"
+                />
+              </div>
+
+              <div>
+                <span className="text-xs text-slate-600 font-medium">Yêu cầu cần đạt:</span>
                 <textarea
                   rows={2}
-                  value={config.lessonContentText}
-                  onChange={(e) => onChange({ lessonContentText: e.target.value })}
-                  placeholder="Dán đoạn văn bản hoặc ghi chú nếu muốn AI bám sát..."
-                  className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1 font-mono"
+                  value={config.learningOutcomes}
+                  onChange={(e) => onChange({ learningOutcomes: e.target.value })}
+                  className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg mt-1"
                 />
               </div>
 
               <div>
                 <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold">
                   <Upload className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Tải tệp tài liệu (.txt, word)</span>
+                  <span>Tải tệp tài liệu riêng (.txt, word)</span>
                   <input
                     type="file"
                     accept=".txt,.doc,.docx"
@@ -717,7 +773,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           type="button"
           onClick={onGenerateExam}
           disabled={isGenerating || totalQuestions === 0}
-          className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
         >
           <Sparkles className="w-4 h-4 text-amber-300" />
           <span>{isGenerating ? 'ĐANG TẠO ĐỀ...' : '✨ TẠO ĐỀ KIỂM TRA'}</span>

@@ -212,4 +212,6 @@ export const INITIAL_CONFIG = {
   numberOfVariants: 2,
   keepTeacherQuestions: false,
   teacherQuestions: [],
+  textbookSeries: 'Kết nối tri thức' as const,
+  termScope: 'Giữa học kỳ I' as const,
 };
