@@ -560,12 +560,6 @@ export default function App() {
     showToast('Đã áp dụng cấu trúc ma trận của giáo viên!');
   };
 
-  // Initial auto-generation on first load if no exam yet
-  useEffect(() => {
-    if (!exam) {
-      handleGenerateExam();
-    }
-  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900 font-sans">
@@ -818,15 +812,44 @@ export default function App() {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
-                <BookOpen className="w-12 h-12 text-blue-600 mx-auto opacity-40" />
-                <h3 className="text-base font-bold text-slate-800">
-                  Chưa có đề thi nào được tạo
-                </h3>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Hãy thiết lập cấp học, môn học và số lượng câu hỏi ở cột bên trái, sau đó nhấn nút{' '}
-                  <strong>&ldquo;TẠO ĐỀ KIỂM TRA&rdquo;</strong>.
-                </p>
+              <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center space-y-5">
+                <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center">
+                  <BookOpen className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-bold text-slate-800">
+                    Chào mừng thầy/cô đến với Hệ thống Ra đề thi AI – 2 Cấp
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-lg mx-auto leading-relaxed">
+                    Hệ thống sẽ giúp thầy/cô tự động xây dựng đề thi, bảng đáp án, ma trận 2 chiều và bản đặc tả chi tiết theo chuẩn Chương trình GDPT 2018 cho mọi môn học cấp THCS và THPT.
+                  </p>
+                </div>
+
+                <div className="max-w-md mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                    <div className="font-bold text-blue-700">Bước 1</div>
+                    <div className="text-slate-600">Chọn cấp học, khối lớp và môn học cần kiểm tra.</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                    <div className="font-bold text-blue-700">Bước 2</div>
+                    <div className="text-slate-600">Thiết lập chủ đề, cấu trúc dạng câu và mức độ nhận thức.</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                    <div className="font-bold text-blue-700">Bước 3</div>
+                    <div className="text-slate-600">Nhấn nút bên dưới để tạo đề, ma trận và barem chấm.</div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={handleGenerateExam}
+                    disabled={isGenerating}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all shadow-md hover:shadow-lg disabled:bg-slate-300"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>Bắt đầu tạo đề kiểm tra ngay</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
